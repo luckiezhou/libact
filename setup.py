@@ -17,17 +17,29 @@ else:
     from Cython.Distutils import build_ext
     import numpy
     import numpy.distutils
-    if sys.platform == 'darwin':
-        print("Platform Detection: Mac OS X. Link to openblas...")
-        extra_link_args = ['-L/usr/local/opt/openblas/lib -lopenblas']
-        include_dirs = (numpy.distutils.misc_util.get_numpy_include_dirs() +
-                        ['/usr/local/opt/openblas/include'])
-    else:
-        # assume linux otherwise, unless we support Windows in the future...
-        print("Platform Detection: Linux. Link to liblapacke...")
-        extra_link_args = ['-L/usr/lib -llapacke -llapack -lblas']
-        include_dirs = (numpy.distutils.misc_util.get_numpy_include_dirs() +
-                        ['/usr/include/lapacke'])
+
+    try:
+        import pkgconfig
+        libs = ['blas', 'lapack', 'lapacke']
+        extra_link_args = [pkgconfig.libs(lib) for lib in libs]
+        include_dirs = (numpy.distutils.misc_util.get_numpy_include_dirs() + 
+                        [pkgconfig.cflags(lib) for lib in libs])
+    except:
+        extra_link_args = None
+        include_dirs = None
+
+    if extra_link_args is None or len(''.join(extra_link_args)) == 0:
+        if sys.platform == 'darwin':
+            print("Platform Detection: Mac OS X. Link to openblas...")
+            extra_link_args = ['-L/usr/local/opt/openblas/lib -lopenblas']
+            include_dirs = (numpy.distutils.misc_util.get_numpy_include_dirs() +
+                            ['/usr/local/opt/openblas/include'])
+        else:
+            # assume linux otherwise, unless we support Windows in the future...
+            print("Platform Detection: Linux. Link to liblapacke...")
+            extra_link_args = ['-L/usr/lib -llapacke -llapack -lblas']
+            include_dirs = (numpy.distutils.misc_util.get_numpy_include_dirs() +
+                            ['/usr/include/lapacke'])
 
     extensions = cythonize([
         Extension(
